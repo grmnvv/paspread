@@ -16,7 +16,7 @@ def resize(img):
 #     загрузка изображения
     img = cv2.imread(img)
 #     изменение размеров
-    final_wide = 1200
+    final_wide = 1400
     r = float(final_wide) / img.shape[1]
     dim = (final_wide, int(img.shape[0] * r))
     img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
@@ -25,7 +25,10 @@ def resize(img):
     blur = cv2.GaussianBlur(gray, (3,3), 0)
     thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)[1]
     kernel = np.ones((7,7), np.uint8)
-#     морфология изображения (открытие и закрытие изображения)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(3, 3)) 
+    #     морфология изображения (расширение, открытие, закрытие изображения)
+    global morph
+    morph = cv2.dilate(img, kernel, iterations=9)
     morph = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
     morph = cv2.morphologyEx(morph, cv2.MORPH_CLOSE, kernel)
 #     поиск контуров (извлечение внешних контуров, получение только 2х основных точек)
@@ -44,7 +47,7 @@ def resize(img):
     corners = cv2.approxPolyDP(big_contour, 0.04 * peri, True)
     global polygon
     polygon = img.copy()
-    cv2.polylines(polygon, [corners], True, (0,0,255), 1, cv2.LINE_AA)
+    cv2.polylines(polygon, [corners], True, (0,0,255), 3, cv2.LINE_AA)
     yarr = list()
     xarr = list()
     nr = np.empty((0,2), dtype="int32")
@@ -60,7 +63,6 @@ def resize(img):
     pY = max(xarr)
     global photo
     photo = img[y:pY, x:pX]
-    cv2.waitKey(0)
     return photo
 
 def pasp_read(photo):
@@ -88,7 +90,7 @@ def pasp_read(photo):
         (x, y, w, h) = cv2.boundingRect(c)
         percentWidth = w / float(W)
         percentHeight = h / float(H)
-        if percentWidth > 0.29 and percentHeight > 0.005:
+        if percentWidth > 0.28 and percentHeight > 0.005:
             mrzBox = (x, y, w, h)
             break
     if mrzBox is None:
@@ -96,9 +98,10 @@ def pasp_read(photo):
         sys.exit(0)
     (x, y, w, h) = mrzBox
     pX = int((x + w) * 0.03)
-    pY = int((y + h) * 0.083)
+    pY = int((y + h) * 0.1)
     (x, y) = (x - pX, y - pY)
     (w, h) = (w + (pX * 2), h + (pY * 2))
+    global mrz
     mrz = image[y:y + h, x:x + w]
     config = (" --oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789><")
     mrzText = pytesseract.image_to_string(mrz, lang='eng', config = config)
